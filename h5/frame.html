@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+		<meta http-equiv="x-ua-compatible" content="ie=edge" />
+		<title>unipay360</title>
+		<!-- MDB icon -->
+		<link rel="icon" href="img/favicon.ico" type="image/x-icon" />
+		<!-- Font Awesome -->
+		<link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.15.2/css/all.css" />
+		<!-- Google Fonts Roboto
+		<link rel="stylesheet" href="https://cdnjs.loli.net/css2?family=Roboto:wght@300;400;500;700;900&display=swap" /> -->
+		<!-- MDB -->
+		<link rel="stylesheet" href="css/bootstrap-payment-forms.min.css" />
+		<link rel="stylesheet" href="css/index.css" />
+	</head>
+
+	<body style="background-color: #eee;">
+
+		<section >
+
+			<div id="snackbar"></div>
+
+			<div class="card">
+				<div class="card-body">
+					<div class="row d-flex justify-content-center pb-5">
+						<div class="col-md-7 col-xl-5 mb-4 mb-md-0">
+							<div class="py-4 d-flex flex-row">
+								<h5><span class="far fa-check-square pe-2"></span><b>unipay360</b></h5>
+								
+							</div>
+							<h3 class="text-success" id="price"></h3>
+							<h4>付款前请确认安全、平台禁止非法交易</h4>
+
+							<div class="rounded d-flex" style="background-color: #f8f9fa;">
+								<div class="p-2" id="name"></div>
+								<div class="ms-auto p-2">已选择</div>
+							</div>
+							<hr />
+							<div class="pt-2">
+								<div class="d-flex pb-2">
+									<p><b id="remark"></b></p>
+								</div>
+
+								<form class="pb-3">
+
+									<div id="wechat" class="d-flex flex-row pb-3" style="visibility: hidden;"
+										onclick="wechatClick()">
+										<div class="d-flex align-items-center pe-2">
+											<input class="form-check-input" type="radio" name="radioPay"
+												id="radio_wechat" value="wechat" aria-label="..." />
+										</div>
+										<div class="rounded border d-flex w-100 p-3 align-items-center">
+											<p class="mb-0">
+												<i class="fab fa-weixin fa-lg  pe-2" style="color: #1AAD19;"></i>微信支付
+											</p>
+										</div>
+									</div>
+
+
+									<div id="alipay" class="d-flex flex-row pb-3" style="visibility: hidden;"
+										onclick="alipayClick()">
+										<div class="d-flex align-items-center pe-2">
+											<input class="form-check-input" type="radio" name="radioPay"
+												id="radio_alipay" value="alipay" aria-label="..." />
+										</div>
+										<div class="rounded border d-flex w-100 p-3 align-items-center">
+											<p class="mb-0">
+												<i class="fab fa-alipay fa-lg text-primary pe-2"></i>支付宝支付
+											</p>
+										</div>
+									</div>
+
+								</form>
+								<input id="check_button" type="button" value="已支付"
+									class="btn btn-primary btn-block btn-lg" onclick="submit()" />
+
+							</div>
+						</div>
+
+						<div class="col-md-5 col-xl-4 offset-xl-1">
+
+							<div class="py-4 d-flex justify-content-end" onclick="cancelGoback()">
+								<h6><a href="#!">取消支付并返回</a></h6>
+							</div>
+							<div id="callapp" class="py-4 d-flex justify-content-center"
+								style="position: absolute;padding-top: 0px;text-align: center;padding-left: 8rem;visibility: hidden;">
+								<div id="apptitle" class="btn btn-primary btn-block btn-lg" onclick="callapp()">
+								</div>
+							</div>
+							<div class="py-4 d-flex justify-content-center">
+								<img id="code" style="width: 100%;">
+							</div>
+							<div class="d-flex pb-2 justify-content-center">
+								<p><b>扫码支付</b></p>
+							</div>
+
+						</div>
+					</div>
+				</div>
+			</div>
+
+		</section>
+		<!-- End your project here-->
+
+		<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+
+		<!-- MDB -->
+		<script type="text/javascript" src="js/mdb.min.js"></script>
+		<!-- Custom scripts -->
+		<script type="text/javascript">
+			var alipay_code_url = "";
+			var alipay_app = "";
+			var wechat_code_url = "";
+			var orderSn = "";
+			var go_back_url = null;
+			var pageStatus = "load";
+			var price = "";
+			window.onload = function() {
+				orderSn = GetQueryString("order_sn");
+				getOrderInfo(orderSn);
+				checkingPay();
+				if (isMobile()) {
+					setAppback();
+				}
+
+			}
+
+			function isMobile() {
+				if (/Mobi|Android|iPhone/i.test(navigator.userAgent)) {
+					// 当前设备是移动设备
+					console.log("Mobile");
+					return true;
+				} else {
+					console.log("Desktop");
+					return false;
+				}
+			}
+
+			function setAppTtile(title) {
+				document.getElementById('apptitle').innerText = title;
+			}
+
+			function callapp(url) {
+				window.open(
+					alipay_app
+				);
+			}
+
+			function setAppback() {
+				var callapp_div = document.getElementById("callapp");
+
+				callapp_div.style.visibility = "visible";
+			}
+
+			function getOrderInfo(orderSN) {
+
+				$.ajax({
+					url: "../../payform/api/query/get_pay",
+					method: 'GET',
+					data: {
+						'orderSn': orderSN
+					},
+					success: function(response) {
+
+						setName(response.order.payName);
+						setRemark(response.order.remark);
+						setPrice("¥" + response.order.orderPrice);
+						price = response.order.orderPrice;
+						go_back_url = response.order.backUrl;
+						alipay_app = response.alipay.url;
+						console.log(response);
+						if (response.alipay) {
+							setAlipayV();
+
+							alipay_code_url =
+								"../../payform/api/query/get_alipay_code?orderSn=" + orderSN;
+							alipayClick();
+						}
+
+						if (response.wechat) {
+							setWechatV();
+
+							wechat_code_url = "../../payform/api/query/get_wechat_code?orderSn=" +
+								orderSN;
+							wechatClick();
+						}
+
+					},
+					error: function(jqXHR, textStatus, errorThrown) {
+						// Handle errors here
+						console.log("Error!!!!!!!")
+					}
+				});
+			}
+
+			function cancelGoback() {
+				$.ajax({
+					url: "../../payform/api/query/cancel_pay",
+					method: 'POST',
+					data: {
+						'orderSn': orderSn,
+						'price': price
+					}
+				});
+				goback();
+			}
+
+			function goback() {
+				if (go_back_url != null) {
+					window.location.replace(go_back_url);
+				} else {
+					window.location.replace("https://unipay360.com");
+				}
+			}
+
+
+			function checkPay(showTitle) {
+
+				$.ajax({
+					url: "../../payform/api/query/check_pay",
+					method: 'GET',
+					data: {
+						'orderSn': orderSn
+					},
+					success: function(response) {
+
+						if (response == 0) {
+							if (showTitle) {
+								//0未支付 提示不跳转
+								showToast("无记录,请稍后..", 3000);
+							}
+
+						} else if (response == 1) {
+							//支付成功 跳转回系统
+							showToast("支付成功,跳转中...", 5000);
+							pageStatus = "payed";
+							setTimeout(function() {
+								goback();
+							}, 5000);
+						} else if (response == 3) {
+							//超时支付 跳转回系统
+							showToast("订单超时", 3000);
+							pageStatus = "paytimeout";
+							setTimeout(function() {
+								goback();
+							}, 3000);
+						} else {
+							//无效订单 跳转回系统
+							showToast("无效订单", 5000);
+							pageStatus = "invalid";
+							setTimeout(function() {
+								goback();
+							}, 5000);
+						}
+
+					},
+					error: function(jqXHR, textStatus, errorThrown) {
+						// Handle errors here
+						console.log("Error!!!!!!!")
+					}
+				});
+
+			}
+
+			function showToast(title, duration) {
+				// Get the snackbar DIV
+				var x = document.getElementById("snackbar");
+
+				// Add the "show" class to DIV
+				x.className = "show";
+				x.innerHTML = title;
+				setTimeout(function() {
+					x.className = x.className.replace("show", "");
+				}, duration);
+
+			}
+
+			function wechatClick() {
+				console.log("wechatClick");
+				var radio = document.getElementById("radio_wechat");
+				radio.checked = true;
+				console.log(wechat_code_url);
+				setCode(wechat_code_url);
+				setAppTtile("长按识别");
+			}
+
+			function alipayClick() {
+				console.log("alipayClick");
+				var radio = document.getElementById("radio_alipay");
+				radio.checked = true;
+				setCode(alipay_code_url);
+				setAppTtile("app打开");
+			}
+
+			function setWechatV() {
+				var wechat_div = document.getElementById("wechat");
+				var radio = document.getElementById("radio_wechat");
+				radio.checked = true;
+				wechat_div.style.visibility = "visible";
+				setAppTtile("长按识别");
+			}
+
+			function setAlipayV() {
+				var alipay_div = document.getElementById("alipay");
+				var radio = document.getElementById("radio_alipay");
+				radio.checked = true;
+				alipay_div.style.visibility = "visible";
+				setAppTtile("app打开");
+			}
+
+			function setName(data) {
+				document.getElementById('name').innerText = data;
+			}
+
+			function setRemark(data) {
+				document.getElementById('remark').innerText = data;
+			}
+
+			function setPrice(data) {
+				document.getElementById('price').innerText = data;
+			}
+
+			function setCode(data) {
+				setTimeout(function() {
+					$("#code").attr("src", data);
+				}, 500);
+			}
+
+			function submit() {
+				setButtonGray();
+				setTimeout(function() {
+					setButtonNormal();
+				}, 4500);
+
+				checkPay(true);
+			}
+
+			function checkingPay() {
+
+				setTimeout(function() {
+					checkPay(false);
+					if (pageStatus == "load") {
+						checkingPay();
+					}
+				}, 3000)
+			}
+
+
+			function setButtonGray() {
+				var checkButton = document.getElementById("check_button");
+
+				checkButton.value = "请等待";
+				checkButton.style.cursor = "not-allowed";
+				checkButton.style.backgroundColor = "#ddd";
+				checkButton.style.pointerEvents = "none";
+			}
+
+			function setButtonNormal() {
+				var checkButton = document.getElementById("check_button");
+				checkButton.value = "已支付";
+				checkButton.style.cursor = "pointer";
+				checkButton.style.backgroundColor = "#1266f1";
+				checkButton.style.pointerEvents = "auto";
+
+			}
+
+			//工具
+			function GetQueryString(name) {
+				var reg = new RegExp("(^|&)" + name + "=([^&]*)(&|$)", "i");
+				var r = window.location.search.substr(1).match(reg); //获取url中"?"符后的字符串并正则匹配
+				var context = "";
+				if (r != null)
+					context = decodeURIComponent(r[2]);
+				reg = null;
+				r = null;
+				return context == null || context == "" || context == "undefined" ? "" : context;
+			}
+		</script>
+	</body>
+
+</html>
